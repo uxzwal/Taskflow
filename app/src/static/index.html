@@ -1,196 +1,747 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TaskFlow — DevOps Task Manager</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
-.container{max-width:900px;margin:0 auto;padding:2rem 1rem}
-header{text-align:center;margin-bottom:2.5rem}
-header h1{font-size:2.2rem;font-weight:700;background:linear-gradient(135deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.3rem}
-header p{color:#94a3b8;font-size:.95rem}
-.health-bar{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.8rem;font-size:.85rem}
-.dot{width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block}
-.dot.ok{background:#22c55e}
-.card{background:#1e293b;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;border:1px solid #334155}
-.card h2{font-size:1.1rem;margin-bottom:1rem;color:#94a3b8}
-.form-row{display:flex;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap}
-.form-row input,.form-row textarea,.form-row select{flex:1;padding:.65rem .9rem;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:.9rem;min-width:180px}
-.form-row textarea{min-height:42px;resize:vertical}
-.form-row input:focus,.form-row textarea:focus{outline:none;border-color:#818cf8}
-.btn{padding:.65rem 1.4rem;border-radius:8px;border:none;cursor:pointer;font-size:.9rem;font-weight:600;transition:all .15s}
-.btn-primary{background:linear-gradient(135deg,#38bdf8,#818cf8);color:#0f172a}
-.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
-.btn-danger{background:#ef4444;color:#fff;padding:.4rem .8rem;font-size:.8rem}
-.btn-danger:hover{background:#dc2626}
-.btn-sm{padding:.35rem .7rem;font-size:.78rem;border-radius:6px}
-.task-list{display:flex;flex-direction:column;gap:.75rem}
-.task-item{display:flex;align-items:center;gap:1rem;padding:1rem 1.2rem;background:#0f172a;border-radius:10px;border:1px solid #334155;transition:border-color .15s}
-.task-item:hover{border-color:#475569}
-.task-info{flex:1}
-.task-title{font-weight:600;font-size:1rem;margin-bottom:.2rem}
-.task-desc{font-size:.85rem;color:#94a3b8}
-.task-meta{font-size:.75rem;color:#64748b;margin-top:.3rem}
-.badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
-.badge-pending{background:#1e3a5f;color:#38bdf8}
-.badge-in_progress{background:#3b2f1e;color:#fb923c}
-.badge-completed{background:#14352a;color:#22c55e}
-.actions{display:flex;gap:.4rem;flex-wrap:wrap}
-.empty{text-align:center;padding:3rem;color:#64748b}
-.stats{display:flex;gap:1rem;justify-content:center;margin-bottom:1.5rem;flex-wrap:wrap}
-.stat{background:#1e293b;border-radius:10px;padding:.8rem 1.4rem;text-align:center;border:1px solid #334155;min-width:120px}
-.stat-num{font-size:1.6rem;font-weight:700;color:#38bdf8}
-.stat-label{font-size:.75rem;color:#94a3b8;margin-top:.15rem}
-footer{text-align:center;margin-top:2rem;font-size:.8rem;color:#475569}
-footer a{color:#818cf8;text-decoration:none}
-select.status-select{background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:.35rem .5rem;font-size:.78rem;cursor:pointer}
-</style>
-</head>
-<body>
-<div class="container">
-  <header>
-    <h1>&#9889; TaskFlow</h1>
-    <p>DevOps Task Management Platform</p>
-    <div class="health-bar">
-      <span class="dot" id="health-dot"></span>
-      <span id="health-text">Checking API...</span>
-    </div>
-  </header>
-
-  <div class="stats" id="stats">
-    <div class="stat"><div class="stat-num" id="stat-total">-</div><div class="stat-label">Total</div></div>
-    <div class="stat"><div class="stat-num" id="stat-pending">-</div><div class="stat-label">Pending</div></div>
-    <div class="stat"><div class="stat-num" id="stat-progress">-</div><div class="stat-label">In Progress</div></div>
-    <div class="stat"><div class="stat-num" id="stat-done">-</div><div class="stat-label">Completed</div></div>
-  </div>
-
-  <div class="card">
-    <h2>Create Task</h2>
-    <form id="create-form">
-      <div class="form-row">
-        <input type="text" id="title" placeholder="Task title" required>
-        <select id="status">
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <textarea id="description" placeholder="Description (optional)" rows="1"></textarea>
-        <button type="submit" class="btn btn-primary">Add Task</button>
-      </div>
-    </form>
-  </div>
-
-  <div class="card">
-    <h2>Tasks</h2>
-    <div class="task-list" id="task-list">
-      <div class="empty">Loading tasks...</div>
-    </div>
-  </div>
-
-  <footer>
-    TaskFlow DevOps Platform &middot; <a href="/health">/health</a> &middot; <a href="/metrics">/metrics</a> &middot; <a href="http://localhost:9090" target="_blank">Prometheus</a> &middot; <a href="http://localhost:3000" target="_blank">Grafana</a>
-  </footer>
-</div>
-
-<script>
-const API = '/api';
-
-async function api(path, opts = {}) {
-  const res = await fetch(API + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-  });
-  return { status: res.status, data: await res.json() };
-}
-
-async function checkHealth() {
-  try {
-    const r = await fetch('/health');
-    const d = await r.json();
-    document.getElementById('health-dot').classList.toggle('ok', d.status === 'healthy');
-    document.getElementById('health-text').textContent = d.status === 'healthy' ? 'API Healthy' : 'API Unhealthy';
-  } catch {
-    document.getElementById('health-dot').classList.remove('ok');
-    document.getElementById('health-text').textContent = 'API Unreachable';
-  }
-}
-
-function timeAgo(iso) {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return Math.floor(s / 60) + 'm ago';
-  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
-  return Math.floor(s / 86400) + 'd ago';
-}
-
-async function loadTasks() {
-  try {
-    const { data } = await api('/tasks');
-    const list = document.getElementById('task-list');
-    if (!data.length) { list.innerHTML = '<div class="empty">No tasks yet — create one above!</div>'; }
-    else {
-      list.innerHTML = data.map(t => `
-        <div class="task-item" data-id="${t.id}">
-          <div class="task-info">
-            <div class="task-title">${esc(t.title)}</div>
-            ${t.description ? `<div class="task-desc">${esc(t.description)}</div>` : ''}
-            <div class="task-meta">Created ${timeAgo(t.created_at)} &middot; ID #${t.id}</div>
-          </div>
-          <span class="badge badge-${t.status}">${t.status.replace('_', ' ')}</span>
-          <select class="status-select" onchange="updateStatus(${t.id}, this.value)">
-            <option value="pending" ${t.status==='pending'?'selected':''}>Pending</option>
-            <option value="in_progress" ${t.status==='in_progress'?'selected':''}>In Progress</option>
-            <option value="completed" ${t.status==='completed'?'selected':''}>Completed</option>
-          </select>
-          <button class="btn btn-danger btn-sm" onclick="deleteTask(${t.id})">Delete</button>
-        </div>`).join('');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow — DevOps Task Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              850: '#151e2e',
+              900: '#0f172a',
+              950: '#090d16',
+            }
+          }
+        }
+      }
     }
-    // Stats
-    document.getElementById('stat-total').textContent = data.length;
-    document.getElementById('stat-pending').textContent = data.filter(t => t.status === 'pending').length;
-    document.getElementById('stat-progress').textContent = data.filter(t => t.status === 'in_progress').length;
-    document.getElementById('stat-done').textContent = data.filter(t => t.status === 'completed').length;
-  } catch { document.getElementById('task-list').innerHTML = '<div class="empty">Failed to load tasks.</div>'; }
-}
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="h-full flex overflow-hidden antialiased selection:bg-indigo-500 selection:text-white">
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  <!-- ========================================================================= -->
+  <!-- LEFT SIDEBAR                                                              -->
+  <!-- ========================================================================= -->
+  <aside id="sidebar" class="w-64 flex-shrink-0 bg-slate-900/95 border-r border-slate-800 flex flex-col justify-between transition-all duration-300 z-30">
+    <!-- Top Brand & Navigation -->
+    <div>
+      <!-- Brand Logo -->
+      <div class="h-16 flex items-center gap-3 px-6 border-b border-slate-800/80">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+        </div>
+        <div>
+          <span class="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
+            TaskFlow
+            <span class="text-[10px] uppercase font-semibold tracking-wider px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">v1.0</span>
+          </span>
+          <span class="block text-[11px] text-slate-400 font-medium -mt-0.5">DevOps Platform</span>
+        </div>
+      </div>
 
-document.getElementById('create-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const title = document.getElementById('title').value.trim();
-  if (!title) return;
-  await api('/tasks', {
-    method: 'POST',
-    body: JSON.stringify({
-      title,
-      description: document.getElementById('description').value.trim(),
-      status: document.getElementById('status').value,
-    }),
-  });
-  document.getElementById('title').value = '';
-  document.getElementById('description').value = '';
-  document.getElementById('status').value = 'pending';
-  loadTasks();
-});
+      <!-- Navigation Links -->
+      <nav class="px-3 py-4 space-y-1">
+        <div class="px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Workspace</div>
 
-async function updateStatus(id, status) {
-  await api(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
-  loadTasks();
-}
+        <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 shadow-sm transition-colors group">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+          </svg>
+          Dashboard
+        </a>
 
-async function deleteTask(id) {
-  if (!confirm('Delete this task?')) return;
-  await api(`/tasks/${id}`, { method: 'DELETE' });
-  loadTasks();
-}
+        <a href="#task-section" class="flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors group">
+          <div class="flex items-center gap-3">
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+            Tasks
+          </div>
+          <span id="nav-task-count" class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold">-</span>
+        </a>
 
-checkHealth();
-loadTasks();
-setInterval(checkHealth, 15000);
-</script>
+        <div class="pt-4 px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Observability</div>
+
+        <a href="/metrics" target="_blank" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors group">
+          <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          Prometheus Metrics
+        </a>
+
+        <a href="http://localhost:3000" target="_blank" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors group">
+          <svg class="w-4 h-4 text-slate-400 group-hover:text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+          </svg>
+          Grafana Dashboard
+        </a>
+
+        <div class="pt-4 px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">System</div>
+
+        <a href="/health" target="_blank" class="flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors">
+          <div class="flex items-center gap-3">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            API Health
+          </div>
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Bottom System Status & User Profile -->
+    <div class="p-4 border-t border-slate-800/80 space-y-3">
+      <!-- Live Status Pill -->
+      <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+        <div class="flex items-center gap-2.5">
+          <span id="health-pulse" class="relative flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span id="health-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <span id="health-status-text" class="text-xs font-medium text-slate-300">API Connected</span>
+        </div>
+        <span class="text-[10px] font-mono text-slate-500">200 OK</span>
+      </div>
+
+      <!-- User Profile Card -->
+      <div class="flex items-center gap-3 pt-1">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-semibold text-xs text-white ring-2 ring-slate-800">
+          LI
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold text-slate-200 truncate">Lucy Intern</div>
+          <div class="text-[11px] text-slate-400 truncate">DevOps Engineer</div>
+        </div>
+        <button title="Settings" class="text-slate-500 hover:text-slate-300 transition-colors p-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN WORKSPACE CONTENT                                                    -->
+  <!-- ========================================================================= -->
+  <div class="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden">
+
+    <!-- Top App Header -->
+    <header class="h-16 flex-shrink-0 bg-slate-900/50 backdrop-blur-md border-b border-slate-800/80 px-8 flex items-center justify-between z-10">
+      <div class="flex items-center gap-3">
+        <h1 id="greeting-title" class="text-lg font-semibold text-white tracking-tight">Good afternoon, Intern 👋</h1>
+        <span class="text-slate-600 hidden sm:inline">&bull;</span>
+        <span id="current-date" class="text-xs text-slate-400 font-medium hidden sm:inline"></span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Live Search Input -->
+        <div class="relative hidden md:block">
+          <input
+            id="search-input"
+            type="text"
+            placeholder="Search tasks... (⌘K)"
+            class="w-64 pl-9 pr-3 py-1.5 text-xs bg-slate-900/90 border border-slate-700/80 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+          />
+          <svg class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+
+        <!-- Primary Action: Open Create Task Modal -->
+        <button
+          id="open-create-modal"
+          class="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition-all hover:-translate-y-0.5 active:translate-y-0"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+          </svg>
+          Create Task
+          <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-medium rounded bg-indigo-700/60 text-indigo-200 ml-1">N</kbd>
+        </button>
+      </div>
+    </header>
+
+    <!-- Scrollable Workspace Body -->
+    <main class="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+
+      <!-- =================================================================== -->
+      <!-- TOP STATS CARDS                                                     -->
+      <!-- =================================================================== -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Stat: Total -->
+        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-sm hover:border-slate-700 transition-all group">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-400">Total Tasks</span>
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="stat-total" class="text-2xl font-bold text-white tracking-tight">-</span>
+            <span class="text-[11px] text-slate-500 font-medium">registered</span>
+          </div>
+        </div>
+
+        <!-- Stat: Pending -->
+        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-sm hover:border-slate-700 transition-all group">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-400">Pending</span>
+            <div class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="stat-pending" class="text-2xl font-bold text-sky-400 tracking-tight">-</span>
+            <span class="text-[11px] text-slate-500 font-medium">in queue</span>
+          </div>
+        </div>
+
+        <!-- Stat: In Progress -->
+        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-sm hover:border-slate-700 transition-all group">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-400">In Progress</span>
+            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="stat-progress" class="text-2xl font-bold text-amber-400 tracking-tight">-</span>
+            <span class="text-[11px] text-slate-500 font-medium">active</span>
+          </div>
+        </div>
+
+        <!-- Stat: Completed -->
+        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-sm hover:border-slate-700 transition-all group">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-400">Completed</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <span id="stat-done" class="text-2xl font-bold text-emerald-400 tracking-tight">-</span>
+            <span class="text-[11px] text-slate-500 font-medium">done</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- FILTER TABS & SEARCH CONTROLS                                       -->
+      <!-- =================================================================== -->
+      <section id="task-section" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+        <!-- Status Filter Tabs -->
+        <div class="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800">
+          <button data-filter="all" class="filter-tab px-3 py-1.5 text-xs font-medium rounded-lg transition-all bg-indigo-600 text-white shadow-sm">
+            All <span id="count-tab-all" class="ml-1 opacity-75">(-)</span>
+          </button>
+          <button data-filter="pending" class="filter-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 transition-all">
+            Pending <span id="count-tab-pending" class="ml-1 opacity-75">(-)</span>
+          </button>
+          <button data-filter="in_progress" class="filter-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 transition-all">
+            In Progress <span id="count-tab-progress" class="ml-1 opacity-75">(-)</span>
+          </button>
+          <button data-filter="completed" class="filter-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 transition-all">
+            Completed <span id="count-tab-done" class="ml-1 opacity-75">(-)</span>
+          </button>
+        </div>
+
+        <div class="text-xs text-slate-500 font-medium flex items-center gap-2">
+          <span>Sort by newest</span>
+          <span class="text-slate-700">&bull;</span>
+          <button id="refresh-btn" class="hover:text-slate-300 transition-colors flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- TASK CARDS LIST                                                     -->
+      <!-- =================================================================== -->
+      <section class="space-y-3" id="task-list-container">
+        <div id="task-list" class="space-y-2.5">
+          <!-- Populated by JavaScript -->
+          <div class="p-12 text-center text-slate-500 text-sm">
+            <svg class="w-6 h-6 mx-auto mb-2 text-slate-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Loading tasks...
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- CREATE TASK MODAL (POPUP)                                                 -->
+  <!-- ========================================================================= -->
+  <div id="create-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-200">
+    <div class="w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-all duration-200" id="modal-box">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-white">Create New Task</h3>
+            <p class="text-xs text-slate-400">Add an item to the task management backlog</p>
+          </div>
+        </div>
+        <button id="close-create-modal" class="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Form -->
+      <form id="create-form" class="p-6 space-y-4">
+        <div>
+          <label for="task-title" class="block text-xs font-medium text-slate-300 mb-1.5">Task Title <span class="text-rose-400">*</span></label>
+          <input
+            type="text"
+            id="task-title"
+            required
+            placeholder="e.g., Provision AWS RDS PostgreSQL instance"
+            class="w-full px-3.5 py-2 text-sm bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+          />
+        </div>
+
+        <div>
+          <label for="task-description" class="block text-xs font-medium text-slate-300 mb-1.5">Description (optional)</label>
+          <textarea
+            id="task-description"
+            rows="3"
+            placeholder="Add relevant technical context, acceptance criteria, or PR links..."
+            class="w-full px-3.5 py-2 text-sm bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all resize-none"
+          ></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">Initial Status</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="cursor-pointer">
+              <input type="radio" name="modal-status" value="pending" checked class="peer sr-only"/>
+              <div class="p-2.5 rounded-xl border border-slate-800 bg-slate-950 text-center peer-checked:border-sky-500 peer-checked:bg-sky-500/10 peer-checked:text-sky-300 transition-all text-xs font-medium text-slate-400">
+                Pending
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="modal-status" value="in_progress" class="peer sr-only"/>
+              <div class="p-2.5 rounded-xl border border-slate-800 bg-slate-950 text-center peer-checked:border-amber-500 peer-checked:bg-amber-500/10 peer-checked:text-amber-300 transition-all text-xs font-medium text-slate-400">
+                In Progress
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="modal-status" value="completed" class="peer sr-only"/>
+              <div class="p-2.5 rounded-xl border border-slate-800 bg-slate-950 text-center peer-checked:border-emerald-500 peer-checked:bg-emerald-500/10 peer-checked:text-emerald-300 transition-all text-xs font-medium text-slate-400">
+                Completed
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            id="cancel-create-modal"
+            class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            id="submit-create-btn"
+            class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-600/30 transition-all"
+          >
+            Create Task
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- FRONTEND APPLICATION JAVASCRIPT                                           -->
+  <!-- ========================================================================= -->
+  <script>
+    // State management
+    let tasks = [];
+    let currentFilter = 'all';
+    let searchQuery = '';
+
+    // Date formatting helper
+    function setGreeting() {
+      const now = new Date();
+      const hours = now.getHours();
+      let greeting = 'Good morning, Intern 👋';
+      if (hours >= 12 && hours < 17) greeting = 'Good afternoon, Intern 👋';
+      else if (hours >= 17) greeting = 'Good evening, Intern 👋';
+
+      const titleEl = document.getElementById('greeting-title');
+      if (titleEl) titleEl.textContent = greeting;
+
+      const dateEl = document.getElementById('current-date');
+      if (dateEl) {
+        dateEl.textContent = now.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+    }
+
+    // Relative time helper
+    function timeAgo(isoString) {
+      if (!isoString) return 'just now';
+      const date = new Date(isoString);
+      const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (diffSec < 60) return 'just now';
+      if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+      return `${Math.floor(diffSec / 86400)}d ago`;
+    }
+
+    // HTML escape utility
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // API Helpers
+    async function fetchApi(endpoint, options = {}) {
+      const res = await fetch(endpoint, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options
+      });
+      return { status: res.status, data: await res.json() };
+    }
+
+    // Health checker
+    async function checkSystemHealth() {
+      const healthDot = document.getElementById('health-dot');
+      const healthPulse = document.getElementById('health-pulse');
+      const healthText = document.getElementById('health-status-text');
+
+      try {
+        const res = await fetch('/health');
+        if (res.ok) {
+          healthDot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500';
+          healthPulse.style.display = 'inline-flex';
+          healthText.textContent = 'API Connected';
+          healthText.className = 'text-xs font-medium text-emerald-400';
+        } else {
+          throw new Error('Unhealthy');
+        }
+      } catch (err) {
+        healthDot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500';
+        healthPulse.style.display = 'none';
+        healthText.textContent = 'API Offline';
+        healthText.className = 'text-xs font-medium text-rose-400';
+      }
+    }
+
+    // Render Stats
+    function updateStats() {
+      const total = tasks.length;
+      const pending = tasks.filter(t => t.status === 'pending').length;
+      const progress = tasks.filter(t => t.status === 'in_progress').length;
+      const done = tasks.filter(t => t.status === 'completed').length;
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('stat-progress').textContent = progress;
+      document.getElementById('stat-done').textContent = done;
+
+      // Sidebar & Tab counts
+      const navCount = document.getElementById('nav-task-count');
+      if (navCount) navCount.textContent = total;
+
+      document.getElementById('count-tab-all').textContent = `(${total})`;
+      document.getElementById('count-tab-pending').textContent = `(${pending})`;
+      document.getElementById('count-tab-progress').textContent = `(${progress})`;
+      document.getElementById('count-tab-done').textContent = `(${done})`;
+    }
+
+    // Render Task Cards
+    function renderTasks() {
+      const container = document.getElementById('task-list');
+
+      // Filter tasks
+      let filtered = tasks;
+      if (currentFilter !== 'all') {
+        filtered = filtered.filter(t => t.status === currentFilter);
+      }
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(t =>
+          (t.title && t.title.toLowerCase().includes(q)) ||
+          (t.description && t.description.toLowerCase().includes(q))
+        );
+      }
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800/80">
+            <div class="w-10 h-10 rounded-xl bg-slate-800/80 text-slate-500 mx-auto flex items-center justify-center mb-3">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+            </div>
+            <h4 class="text-sm font-semibold text-slate-300">No tasks found</h4>
+            <p class="text-xs text-slate-500 mt-1">${searchQuery ? 'Try adjusting your search criteria.' : 'Create your first task using the "+ Create Task" button.'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(t => {
+        let badgeClass = '';
+        let badgeLabel = '';
+        let borderClass = 'border-slate-800/90';
+
+        if (t.status === 'completed') {
+          badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+          badgeLabel = 'Completed';
+        } else if (t.status === 'in_progress') {
+          badgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+          badgeLabel = 'In Progress';
+        } else {
+          badgeClass = 'bg-sky-500/10 text-sky-400 border-sky-500/20';
+          badgeLabel = 'Pending';
+        }
+
+        return `
+          <div class="group relative p-4 rounded-xl bg-slate-900/80 border ${borderClass} hover:border-slate-700/80 hover:bg-slate-900 shadow-sm transition-all duration-200">
+            <div class="flex items-start justify-between gap-4">
+              <!-- Task Content -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeClass}">
+                    ${badgeLabel}
+                  </span>
+                  <span class="text-[11px] font-mono text-slate-500">#${t.id}</span>
+                </div>
+                <h3 class="text-sm font-semibold text-white tracking-tight group-hover:text-indigo-300 transition-colors">
+                  ${escapeHtml(t.title)}
+                </h3>
+                ${t.description ? `
+                  <p class="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    ${escapeHtml(t.description)}
+                  </p>
+                ` : ''}
+
+                <!-- Footer metadata -->
+                <div class="flex items-center gap-3 mt-3 text-[11px] text-slate-500 font-medium">
+                  <span class="flex items-center gap-1">
+                    <svg class="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Created ${timeAgo(t.created_at)}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Actions: Status Select & Subtle Ghost Delete -->
+              <div class="flex items-center gap-2 self-start flex-shrink-0">
+                <select
+                  onchange="handleUpdateStatus(${t.id}, this.value)"
+                  class="text-xs font-medium bg-slate-950 text-slate-300 border border-slate-700/80 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 hover:border-slate-600 transition-colors cursor-pointer"
+                >
+                  <option value="pending" ${t.status === 'pending' ? 'selected' : ''}>Pending</option>
+                  <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                  <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>Completed</option>
+                </select>
+
+                <!-- Subtle Ghost Trash Can (turns red on hover) -->
+                <button
+                  onclick="handleDeleteTask(${t.id})"
+                  title="Delete task"
+                  class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all opacity-60 group-hover:opacity-100"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Load tasks from backend
+    async function loadTasks() {
+      try {
+        const { data } = await fetchApi('/api/tasks');
+        if (Array.isArray(data)) {
+          tasks = data;
+          updateStats();
+          renderTasks();
+        }
+      } catch (err) {
+        console.error('Failed to load tasks', err);
+      }
+    }
+
+    // Status change handler
+    async function handleUpdateStatus(id, newStatus) {
+      // Optimistic UI update
+      const target = tasks.find(t => t.id === id);
+      if (target) {
+        target.status = newStatus;
+        updateStats();
+        renderTasks();
+      }
+
+      await fetchApi(`/api/tasks/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus })
+      });
+      loadTasks();
+    }
+
+    // Delete task handler
+    async function handleDeleteTask(id) {
+      if (!confirm('Are you sure you want to delete this task?')) return;
+      // Optimistic UI removal
+      tasks = tasks.filter(t => t.id !== id);
+      updateStats();
+      renderTasks();
+
+      await fetchApi(`/api/tasks/${id}`, { method: 'DELETE' });
+      loadTasks();
+    }
+
+    // Modal Controls
+    const modal = document.getElementById('create-modal');
+    const modalBox = document.getElementById('modal-box');
+
+    function openModal() {
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      modalBox.classList.remove('scale-95');
+      modalBox.classList.add('scale-100');
+      document.getElementById('task-title').focus();
+    }
+
+    function closeModal() {
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      modalBox.classList.remove('scale-100');
+      modalBox.classList.add('scale-95');
+      document.getElementById('create-form').reset();
+    }
+
+    document.getElementById('open-create-modal').addEventListener('click', openModal);
+    document.getElementById('close-create-modal').addEventListener('click', closeModal);
+    document.getElementById('cancel-create-modal').addEventListener('click', closeModal);
+
+    // Modal backdrop click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Escape closes modal
+      if (e.key === 'Escape') closeModal();
+      // 'n' opens create modal (when not inside an input/textarea)
+      if ((e.key === 'n' || e.key === 'N') && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        e.preventDefault();
+        openModal();
+      }
+      // Cmd/Ctrl + K focuses search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('search-input').focus();
+      }
+    });
+
+    // Create form submit
+    document.getElementById('create-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('task-title').value.trim();
+      if (!title) return;
+
+      const description = document.getElementById('task-description').value.trim();
+      const status = document.querySelector('input[name="modal-status"]:checked').value;
+
+      closeModal();
+
+      await fetchApi('/api/tasks', {
+        method: 'POST',
+        body: JSON.stringify({ title, description, status })
+      });
+
+      loadTasks();
+    });
+
+    // Search input handler
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderTasks();
+    });
+
+    // Filter tab clicks
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => {
+          t.className = 'filter-tab px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200 transition-all';
+        });
+        tab.className = 'filter-tab px-3 py-1.5 text-xs font-medium rounded-lg transition-all bg-indigo-600 text-white shadow-sm';
+        currentFilter = tab.getAttribute('data-filter');
+        renderTasks();
+      });
+    });
+
+    // Refresh button
+    document.getElementById('refresh-btn').addEventListener('click', loadTasks);
+
+    // Initial setup
+    setGreeting();
+    checkSystemHealth();
+    loadTasks();
+    setInterval(checkSystemHealth, 15000);
+  </script>
 </body>
 </html>
