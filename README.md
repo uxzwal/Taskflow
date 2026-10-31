@@ -1,7 +1,6 @@
 # ⚡ TaskFlow | DevOps Engineering Platform
 
 ### A production-oriented, cloud-ready task management platform built with modern DevOps practices.
-
 <p align="center">
   <strong>Automated CI/CD · Infrastructure as Code · Containerization · Security · Observability</strong>
 </p>
@@ -17,6 +16,7 @@
 ---
 
 ## 📌 Overview
+<img width="1919" height="954" alt="Screenshot from 2026-10-31 17-53-43" src="https://github.com/user-attachments/assets/5110f72f-ef1a-4ffe-a00d-16d0ca4f799c" />
 
 **TaskFlow** is a three-tier task management application engineered around a complete DevOps lifecycle.
 
