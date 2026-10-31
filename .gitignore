@@ -1,0 +1,41 @@
+# ─── Python ──────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# ─── Virtual environments ───────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ─── Environment secrets ────────────────────────────────────────
+.env
+
+# ─── IDE ─────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Docker ──────────────────────────────────────────────────────
+*.log
+
+# ─── Terraform ───────────────────────────────────────────────────
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+
+# ─── Coverage ────────────────────────────────────────────────────
+htmlcov/
+.coverage
+coverage.xml
+
+# ─── OS ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

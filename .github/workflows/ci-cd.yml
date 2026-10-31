@@ -1,0 +1,181 @@
+name: TaskFlow CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: taskflow-api
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  # ── STAGE 1: Code Quality, Unit Tests & Static Security Scan ───
+  test-and-scan:
+    name: Lint, Test & Security Scan
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
+
+      - name: Run Flake8 Linter
+        run: flake8 app/src
+
+      - name: Run Pytest with Coverage Gate
+        run: pytest --cov=app/src --cov-fail-under=80
+
+      - name: Run Bandit Security Scanner
+        run: bandit -r app/src
+
+      - name: Run Trivy Filesystem Vulnerability Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "fs"
+          ignore-unfixed: true
+          format: "table"
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"
+
+  # ── STAGE 2: Terraform IaC Validation ─────────────────────────
+  validate-infrastructure:
+    name: Validate Terraform IaC
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: Terraform Format Check
+        run: terraform -chdir=terraform fmt -check
+
+      - name: Terraform Init
+        run: terraform -chdir=terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform -chdir=terraform validate
+
+  # ── STAGE 3: Build & Scan Container Image ──────────────────────
+  build-and-image-scan:
+    name: Docker Build & Trivy Image Scan
+    needs: [test-and-scan, validate-infrastructure]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+
+      - name: Scan Docker Image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          format: "table"
+          severity: "CRITICAL"
+          exit-code: "1"
+
+      - name: Log in to Docker Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag and Push Image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          REGISTRY_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          docker tag ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} "${REGISTRY_IMAGE}"
+          docker push "${REGISTRY_IMAGE}"
+
+  # ── STAGE 4: Automated Deploy to Staging ───────────────────────
+  deploy-staging:
+    name: Deploy to Staging Environment
+    needs: [build-and-image-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    environment:
+      name: staging
+      url: http://${{ secrets.STAGING_HOST }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy Containers to Staging EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.STAGING_HOST }} << 'EOF'
+            set -euo pipefail
+            cd /opt/taskflow || git clone https://github.com/${{ github.repository }}.git /opt/taskflow
+            cd /opt/taskflow
+            git pull origin main
+            docker compose pull || true
+            docker compose up -d --build
+          EOF
+
+      - name: Execute Post-Deploy Smoke Tests
+        run: |
+          ./scripts/smoke-test.sh "http://${{ secrets.STAGING_HOST }}"
+
+  # ── STAGE 5: Manual Approval & Deploy to Production ───────────
+  deploy-production:
+    name: Deploy to Production Environment
+    needs: [deploy-staging]
+    runs-on: ubuntu-22.04
+    environment:
+      name: production
+      url: http://${{ secrets.PRODUCTION_HOST }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy Containers to Production EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+            set -euo pipefail
+            cd /opt/taskflow
+            git pull origin main
+            docker compose pull || true
+            docker compose up -d --build
+          EOF
+
+      - name: Execute Production Smoke Tests
+        run: |
+          ./scripts/smoke-test.sh "http://${{ secrets.PRODUCTION_HOST }}"

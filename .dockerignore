@@ -1,0 +1,40 @@
+# Version control
+.git
+.gitignore
+
+# Virtual environments
+venv
+.venv
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+
+# Tests (not needed in production image)
+tests
+
+# Infrastructure (not needed in app image)
+terraform
+monitoring
+.github
+nginx
+docs
+
+# CI files
+Jenkinsfile
+
+# Secrets
+.env
+
+# IDE
+.vscode
+.idea
+
+# Project meta
+setup.cfg
+agents.md
+GEMINI.md
+README.md
+docker-compose.yml
